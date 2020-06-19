@@ -185,8 +185,12 @@ app.UseHealthChecksPrometheusExporter()
 
 // You could customize the endpoint
 app.UseHealthChecksPrometheusExporter("/my-health-metrics")
-```
 
+// The endpoint will by default return a HTTP 503 service unavailable.  This means that prometheus will report the endpoint as down and not collect metrics from it, even if they are present in the http response.  To change this, use the options overload:
+app.UseHealthChecksPrometheusExporter("/healthmetrics", options=> {
+  options.ResultStatusCodes[HealthStatus.Unhealthy] = StatusCodes.Status200Ok
+});
+```
 
 ## HealthCheckUI
 

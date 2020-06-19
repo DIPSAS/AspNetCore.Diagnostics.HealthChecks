@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace FunctionalTests.HealthChecks.Prometheus.Metrics
@@ -64,6 +65,29 @@ namespace FunctionalTests.HealthChecks.Prometheus.Metrics
                 .GetAsync();
 
             response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            var resultAsString = await response.Content.ReadAsStringAsync();
+            resultAsString.Should().ContainCheckAndResult("fake", HealthStatus.Unhealthy);
+        }
+
+        [SkipOnAppVeyor]
+        public async Task be_unhealthy_and_return_custom_statuscode_when_custom_statuscode_mapped_and_health_checks_are()
+        {
+            var sut = new TestServer(new WebHostBuilder()
+                .UseStartup<DefaultStartup>()
+                .ConfigureServices(services =>
+                {
+                    services.AddHealthChecks()
+                        .AddCheck("fake", check => HealthCheckResult.Unhealthy());
+                })
+                .Configure(app =>
+                {
+                    app.UseHealthChecksPrometheusExporter("/health", options => options.ResultStatusCodes[HealthStatus.Unhealthy] = StatusCodes.Status403Forbidden);
+                }));
+
+            var response = await sut.CreateRequest("/health")
+                .GetAsync();
+
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
             var resultAsString = await response.Content.ReadAsStringAsync();
             resultAsString.Should().ContainCheckAndResult("fake", HealthStatus.Unhealthy);
         }
